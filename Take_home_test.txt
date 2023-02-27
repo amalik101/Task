@@ -1,0 +1,39 @@
+CREATE OR REPLACE FUNCTION min_to_max_sfunc(state anyarray, val anyelement)
+RETURNS anyarray AS $$
+BEGIN
+  IF state[1] IS NULL OR val < state[1] THEN
+    state[1] := val;
+  END IF;
+  IF state[2] IS NULL OR val > state[2] THEN
+    state[2] := val;
+  END IF;
+  RETURN state;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION min_to_max_finalfunc(state anyarray, delimiter text, max_format text, min_format text)
+RETURNS text AS $$
+DECLARE
+  max_val text;
+  min_val text;
+BEGIN
+  IF state[1] IS NULL OR state[2] IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  max_val := to_char(state[2], max_format1);
+  min_val := to_char(state[1], min_format);
+
+  RETURN min_val || delimiter || max_val;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE AGGREGATE min_to_max(anyelement, text, text, text)
+(
+  sfunc = min_to_max_sfunc,
+  stype = anyarray,
+  finalfunc = min_to_max_finalfunc
+);
+
+SELECT min_to_max(val, ' to ', '999G999G999', 'FM999G999G999') FROM (VALUES(5000000),(70),(3000000),(8000),(6000000))
+t(val);
